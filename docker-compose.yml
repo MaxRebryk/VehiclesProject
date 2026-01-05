@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: vehicle_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@postgres:5432/vehicle_db"
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672"
+      PORT: 3000
+    depends_on:
+      - postgres
+      - rabbitmq
+    ports:
+      - "3000:3000"
+
+  vehicle-service:
+    build:
+      context: ./vehicle-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@postgres:5432/vehicle_db"
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672"
+      PORT: 3000
+    depends_on:
+      - postgres
+      - rabbitmq
+    ports:
+      - "3001:3000"
+
+  front:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - user-service
+      - vehicle-service
+
+volumes:
+  postgres_data:
